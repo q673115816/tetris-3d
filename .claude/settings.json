@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --version)",
+      "Bash(npm list -g)",
+      "Bash(node test_logic.js)",
+      "Bash(chmod +x build-web-test.sh)",
+      "Bash(./build-web-test.sh)",
+      "Bash(chmod +x build-android-test.sh)",
+      "Bash(./build-android-test.sh)",
+      "Bash(chmod +x build-verification.sh)",
+      "Bash(./build-verification.sh)"
+    ],
+    "additionalDirectories": [
+      "/Users/hzh/Documents/demo/cocoscreater-demo/tetris-3d/assets"
+    ]
+  }
+}

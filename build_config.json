@@ -1,0 +1,48 @@
+{
+  "builder": {
+    "android": {
+      "packageName": "com.tetris3d.game",
+      "appName": "3D Tetris",
+      "orientation": {
+        "landscapeLeft": true,
+        "landscapeRight": true,
+        "portrait": false,
+        "upsideDown": false
+      },
+      "apiLevel": 29,
+      "targetApiLevel": 30,
+      "ndkPath": "",
+      "keystorePath": "",
+      "keystorePassword": "",
+      "keystoreAlias": "",
+      "keystoreAliasPassword": ""
+    },
+    "ios": {
+      "packageName": "com.tetris3d.game",
+      "appName": "3D-Tetris",
+      "orientation": {
+        "landscapeLeft": true,
+        "landscapeRight": true,
+        "portrait": false,
+        "upsideDown": false
+      },
+      "ios_sdk": "auto",
+      "targetPlatform": "iOS"
+    },
+    "web": {
+      "embedWebDebugger": false,
+      "genMultiThreading": false,
+      "platform": "web",
+      "sourceMaps": false
+    }
+  },
+  "template": {
+    "index": "./index.html",
+    "web-mobile": "./web-mobile/index.html",
+    "web-desktop": "./web-desktop/index.html"
+  },
+  "output": {
+    "path": "./build",
+    "debug": false
+  }
+}
