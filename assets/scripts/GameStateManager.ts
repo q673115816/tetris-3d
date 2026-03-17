@@ -1,8 +1,9 @@
-import { _decorator, Component, Node, Vec3, sys, JsonAsset } from 'cc';
+import { _decorator, Component, Node, Vec3, sys } from 'cc';
 import { GameController } from './GameController';
 import { GridSystem3D } from './GridSystem3D';
 import { BlockPiece3D } from './BlockPiece3D';
 import { BlockShape3D } from './BlockPiece3D';
+import { createVisibleBlockNode } from './BlockVisualFactory';
 
 const { ccclass, property } = _decorator;
 
@@ -12,6 +13,8 @@ export interface GameStateData {
     level: number;
     linesCleared: number;
     isGameOver: boolean;
+    isPaused: boolean;
+    gravityTimer: number;
     gridData: GridData;
     currentPieceData?: PieceData;
     position: Vec3;
@@ -152,8 +155,9 @@ export class GameStateManager extends Component {
 
         // 获取当前方块数据（如果有）
         let currentPieceData: PieceData | undefined;
-        if (this.gameController['_currentPiece']) {
-            currentPieceData = this.capturePieceData(this.gameController['_currentPiece']);
+        const currentPiece = this.gameController.getCurrentPiece();
+        if (currentPiece) {
+            currentPieceData = this.capturePieceData(currentPiece);
         }
 
         return {
@@ -161,9 +165,11 @@ export class GameStateManager extends Component {
             level: gameState.level,
             linesCleared: gameState.linesCleared,
             isGameOver: gameState.isGameOver,
+            isPaused: this.gameController.getIsPaused(),
+            gravityTimer: this.gameController.getGravityTimer(),
             gridData: gridData,
             currentPieceData: currentPieceData,
-            position: this.node.worldPosition,
+            position: this.node.worldPosition.clone(),
             timestamp: Date.now()
         };
     }
@@ -209,8 +215,8 @@ export class GameStateManager extends Component {
     private capturePieceData(piece: BlockPiece3D): PieceData {
         return {
             shape: piece.shape,
-            position: piece.position,
-            relativeCells: piece.getOccupiedCells()
+            position: piece.position.clone(),
+            relativeCells: piece.getRelativeCells()
         };
     }
 
@@ -224,12 +230,15 @@ export class GameStateManager extends Component {
 
         // 暂停游戏更新
         this.gameController.enabled = false;
+        this.gameController.clearCurrentPiece();
 
         // 重置游戏状态
-        this.gameController['_score'] = state.score;
-        this.gameController['_level'] = state.level;
-        this.gameController['_linesCleared'] = state.linesCleared;
-        this.gameController['_isGameOver'] = state.isGameOver;
+        this.gameController.setScore(state.score);
+        this.gameController.setLevel(state.level);
+        this.gameController.setLinesCleared(state.linesCleared);
+        this.gameController.setIsGameOver(state.isGameOver);
+        this.gameController.setGravityTimer(state.gravityTimer);
+        this.gameController.setPaused(state.isPaused);
 
         // 恢复网格数据
         this.restoreGridData(state.gridData);
@@ -271,9 +280,12 @@ export class GameStateManager extends Component {
 
         // 重新设置被占用的单元格
         for (const cell of gridData.occupiedCells) {
-            // 创建一个占位节点
-            const placeholderNode = new Node('SavedBlock');
-            // 实际游戏中可能需要创建真实的方块节点
+            const placeholderNode = createVisibleBlockNode(
+                'SavedBlock',
+                new Vec3(cell.x, cell.y, cell.z),
+                this.gameController.gameScene || this.gameController.node,
+            );
+
             gridSystem.setCell(cell.x, cell.y, cell.z, placeholderNode);
         }
     }
@@ -312,10 +324,10 @@ export class GameStateManager extends Component {
         }
 
         const newPiece = newPieceNode.addComponent(BlockPiece3D);
-        newPiece.init(pieceData.shape, pieceData.position);
+        newPiece.init(pieceData.shape, pieceData.position, pieceData.relativeCells);
 
         // 设置为当前方块
-        this.gameController['_currentPiece'] = newPiece;
+        this.gameController.setCurrentPiece(newPiece);
     }
 
     /**

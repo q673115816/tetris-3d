@@ -1,4 +1,5 @@
 import { _decorator, Component, Node, Vec3, Enum } from 'cc';
+import { createVisibleBlockNode } from './BlockVisualFactory';
 const { ccclass, property } = _decorator;
 
 // 定义3D方块的形状类型
@@ -37,11 +38,15 @@ export class BlockPiece3D extends Component {
     /**
      * 初始化方块
      */
-    init(shapeType: BlockShape3D, startPos: Vec3) {
+    init(shapeType: BlockShape3D, startPos: Vec3, relativeCells?: Vec3[]) {
         this.shape = shapeType;
         this.position = startPos.clone();
 
-        // 根据形状类型创建方块单元
+        if (relativeCells && relativeCells.length > 0) {
+            this.rebuildFromRelativeCells(relativeCells);
+            return;
+        }
+
         this.createBlocks();
     }
 
@@ -49,12 +54,7 @@ export class BlockPiece3D extends Component {
      * 根据形状类型创建方块单元
      */
     private createBlocks() {
-        // 清空现有的方块
-        this.blocks.forEach(block => {
-            if (block) block.destroy();
-        });
-        this.blocks = [];
-        this.occupiedCells = [];
+        this.resetBlocks();
 
         // 根据形状创建对应的方块结构
         switch (this.shape) {
@@ -81,6 +81,25 @@ export class BlockPiece3D extends Component {
                 break;
             default:
                 this.createShape_3x3_L(); // 默认形状
+        }
+    }
+
+    private resetBlocks() {
+        this.blocks.forEach((block) => {
+            if (block) {
+                block.destroy();
+            }
+        });
+
+        this.blocks = [];
+        this.occupiedCells = [];
+    }
+
+    private rebuildFromRelativeCells(relativeCells: Vec3[]) {
+        this.resetBlocks();
+
+        for (const cell of relativeCells) {
+            this.addCellRelative(cell.x, cell.y, cell.z);
         }
     }
 
@@ -200,8 +219,12 @@ export class BlockPiece3D extends Component {
         );
 
         // 创建可视方块（稍后由游戏控制器添加实际的网格和材质）
-        const blockNode = new Node(`Block_${this.blocks.length}`);
-        blockNode.setPosition(cellPos.x, cellPos.y, cellPos.z);
+        const parentNode = this.node?.parent || this.node;
+        const blockNode = createVisibleBlockNode(
+            `Block_${this.blocks.length}`,
+            cellPos,
+            parentNode,
+        );
 
         this.blocks.push(blockNode);
         this.occupiedCells.push(new Vec3(xOffset, yOffset, zOffset));
@@ -219,7 +242,7 @@ export class BlockPiece3D extends Component {
      * 相对移动方块
      */
     translate(delta: Vec3) {
-        this.position.add(delta);
+        this.position = this.position.clone().add(delta);
 
         // 更新所有组成方块的位置
         for (let i = 0; i < this.blocks.length; i++) {
@@ -294,6 +317,20 @@ export class BlockPiece3D extends Component {
     }
 
     /**
+     * 获取方块相对坐标，便于保存旋转后的状态
+     */
+    getRelativeCells(): Vec3[] {
+        return this.occupiedCells.map((cell) => cell.clone());
+    }
+
+    /**
+     * 获取组成方块的节点列表
+     */
+    getBlockNodes(): Node[] {
+        return [...this.blocks];
+    }
+
+    /**
      * 检查与其他方块的碰撞
      */
     checkCollision(otherBlocks: Vec3[]): boolean {
@@ -315,7 +352,7 @@ export class BlockPiece3D extends Component {
      */
     destroyPiece() {
         for (const block of this.blocks) {
-            if (block && block.parent) {
+            if (block) {
                 block.destroy();
             }
         }

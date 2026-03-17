@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, instantiate, Prefab, resources, director } from 'cc';
+import { _decorator, Component, Node, Vec3, Prefab } from 'cc';
 import { GridSystem3D } from './GridSystem3D';
 import { BlockPiece3D, BlockShape3D } from './BlockPiece3D';
 const { ccclass, property } = _decorator;
@@ -78,6 +78,10 @@ export class GameController extends Component {
         return this.isPaused;
     }
 
+    public setPaused(paused: boolean) {
+        this.isPaused = paused;
+    }
+
     /**
      * 初始化游戏
      */
@@ -108,15 +112,16 @@ export class GameController extends Component {
     private spawnNewPiece() {
         if (!this.gridSystem) return;
 
-        // 确定起始位置（网格顶部中央）
-        const startX = Math.floor(this.gridSystem.width / 2);
-        const startY = this.gridSystem.height - 1; // 从顶部开始
-        const startZ = Math.floor(this.gridSystem.depth / 2);
-
-        const startPos = new Vec3(startX, startY, startZ);
-
         // 随机选择方块形状
-        const shapes = Object.values(BlockShape3D);
+        const shapes: BlockShape3D[] = [
+            BlockShape3D.Shape_3x3_L,
+            BlockShape3D.Shape_3x3_I,
+            BlockShape3D.Shape_3x3_Square,
+            BlockShape3D.Shape_3x3_T,
+            BlockShape3D.Shape_2x2_Column,
+            BlockShape3D.Shape_Corner,
+            BlockShape3D.Shape_Stairs
+        ];
         const randomShape = shapes[Math.floor(Math.random() * shapes.length)] as BlockShape3D;
 
         // 创建新方块
@@ -128,7 +133,18 @@ export class GameController extends Component {
         }
 
         const newPiece = newPieceNode.addComponent(BlockPiece3D);
-        newPiece.init(randomShape, startPos);
+        newPiece.init(randomShape, new Vec3(0, 0, 0));
+
+        const relativeCells = newPiece.getRelativeCells();
+        const maxX = Math.max(...relativeCells.map((cell) => cell.x));
+        const maxY = Math.max(...relativeCells.map((cell) => cell.y));
+        const maxZ = Math.max(...relativeCells.map((cell) => cell.z));
+
+        const startX = Math.max(0, Math.floor((this.gridSystem.width - (maxX + 1)) / 2));
+        const startY = Math.max(0, this.gridSystem.height - 1 - maxY);
+        const startZ = Math.max(0, Math.floor((this.gridSystem.depth - (maxZ + 1)) / 2));
+
+        newPiece.moveTo(new Vec3(startX, startY, startZ));
 
         this.currentPiece = newPiece;
 
@@ -169,7 +185,7 @@ export class GameController extends Component {
 
         // 临时移动方块以检查碰撞
         const originalPos = this.currentPiece.position.clone();
-        this.currentPiece.moveTo(originalPos.add(offset));
+        this.currentPiece.moveTo(originalPos.clone().add(offset));
 
         const isColliding = this.checkCollisionAtPosition();
 
@@ -276,17 +292,30 @@ export class GameController extends Component {
 
         // 将当前方块的所有单元格添加到网格系统
         const occupiedCells = this.currentPiece.getOccupiedCells();
-        for (const cell of occupiedCells) {
+        const blockNodes = typeof this.currentPiece.getBlockNodes === 'function'
+            ? this.currentPiece.getBlockNodes()
+            : [];
+        const pieceNode = this.currentPiece.node || null;
+
+        for (let i = 0; i < occupiedCells.length; i++) {
+            const cell = occupiedCells[i];
             this.gridSystem.setCell(
                 Math.floor(cell.x),
                 Math.floor(cell.y),
                 Math.floor(cell.z),
-                this.currentPiece.node
+                blockNodes[i] || pieceNode
             );
         }
 
+        const lockedPieceNode = pieceNode;
+        this.currentPiece = null;
+
         // 检查是否有完整层需要清除
         this.clearCompletedLayers();
+
+        if (lockedPieceNode && typeof lockedPieceNode.destroy === 'function') {
+            lockedPieceNode.destroy();
+        }
 
         // 生成新的方块
         this.spawnNewPiece();
@@ -354,6 +383,7 @@ export class GameController extends Component {
         this.linesCleared = 0;
         this.isGameOver = false;
         this.isPaused = false; // 重置暂停状态
+        this.gravityTimer = 0;
 
         // 清除网格中的所有方块
         if (this.gridSystem) {
@@ -371,10 +401,7 @@ export class GameController extends Component {
         }
 
         // 销毁当前方块
-        if (this.currentPiece) {
-            this.currentPiece.destroyPiece();
-            this.currentPiece = null;
-        }
+        this.clearCurrentPiece();
 
         // 重新开始
         this.spawnNewPiece();
@@ -395,6 +422,22 @@ export class GameController extends Component {
     // 以下是一些公共getter方法，用于状态管理器访问私有属性
     public getCurrentPiece(): BlockPiece3D | null {
         return this.currentPiece;
+    }
+
+    public setCurrentPiece(piece: BlockPiece3D | null) {
+        this.currentPiece = piece;
+    }
+
+    public clearCurrentPiece() {
+        if (!this.currentPiece) {
+            return;
+        }
+
+        this.currentPiece.destroyPiece();
+        if (this.currentPiece.node && typeof this.currentPiece.node.destroy === 'function') {
+            this.currentPiece.node.destroy();
+        }
+        this.currentPiece = null;
     }
 
     public getIsGameOver(): boolean {

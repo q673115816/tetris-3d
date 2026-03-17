@@ -6,8 +6,7 @@ const { ccclass, property } = _decorator;
 @ccclass('Main')
 export class Main extends Component {
     start() {
-        // 启动游戏初始化器
-        const initializer = new GameInitializer();
-        initializer.start();
+        const initializer = this.getComponent(GameInitializer) || this.addComponent(GameInitializer);
+        initializer.initializeGameScene();
     }
 }

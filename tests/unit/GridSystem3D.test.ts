@@ -123,9 +123,11 @@ describe('GridSystem3D', () => {
             }
             expect(gridSystem.getCompleteLayers()).toEqual([]);
 
-            // Complete the remaining cell in layer 0
-            const mockBlock = { destroy: jest.fn() } as any;
-            gridSystem.setCell(gridSystem.width - 1, 0, 0, mockBlock);
+            // Complete the remaining column in layer 0
+            for (let z = 0; z < gridSystem.depth; z++) {
+                const mockBlock = { destroy: jest.fn() } as any;
+                gridSystem.setCell(gridSystem.width - 1, 0, z, mockBlock);
+            }
 
             expect(gridSystem.getCompleteLayers()).toEqual([0]);
         });

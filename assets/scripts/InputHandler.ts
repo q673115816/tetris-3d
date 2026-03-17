@@ -1,4 +1,4 @@
-import { _decorator, Component, EventKeyboard, Input, input, KeyCode, Node } from 'cc';
+import { _decorator, Component, EventKeyboard, Input, input, KeyCode, Vec3 } from 'cc';
 import { GameController } from './GameController';
 import { GameStateManager } from './GameStateManager';
 const { ccclass, property } = _decorator;
@@ -63,7 +63,7 @@ export class InputHandler extends Component {
             return false;
         }
 
-        return gameControlKeys.includes(keyCode);
+        return gameControlKeys.indexOf(keyCode) !== -1;
     }
 
     /**
@@ -112,22 +112,22 @@ export class InputHandler extends Component {
 
             // 顺时针旋转（绕Y轴）
             case KeyCode.KEY_Q:
-                this.gameController.rotatePiece(cc.v3(0, 1, 0), 90);
+                this.gameController.rotatePiece(new Vec3(0, 1, 0), 90);
                 break;
 
             // 逆时针旋转（绕Y轴）
             case KeyCode.KEY_E:
-                this.gameController.rotatePiece(cc.v3(0, 1, 0), -90);
+                this.gameController.rotatePiece(new Vec3(0, 1, 0), -90);
                 break;
 
             // 绕X轴旋转
             case KeyCode.KEY_Z:
-                this.gameController.rotatePiece(cc.v3(1, 0, 0), 90);
+                this.gameController.rotatePiece(new Vec3(1, 0, 0), 90);
                 break;
 
             // 绕Z轴旋转
             case KeyCode.KEY_C:
-                this.gameController.rotatePiece(cc.v3(0, 0, 1), 90);
+                this.gameController.rotatePiece(new Vec3(0, 0, 1), 90);
                 break;
 
             // 快速下落
@@ -158,8 +158,10 @@ export class InputHandler extends Component {
         switch (event.keyCode) {
             // 保存游戏
             case KeyCode.KEY_S:
+                const wasPausedBeforeSave = this.gameController?.getIsPaused() ?? false;
+
                 // 暂停游戏后再保存
-                if (this.gameController && !this.gameController.getIsPaused()) {
+                if (this.gameController && !wasPausedBeforeSave) {
                     this.gameController.pauseGame();
                 }
 
@@ -168,7 +170,7 @@ export class InputHandler extends Component {
                     console.log('Game saved successfully!');
 
                     // 如果游戏之前不是暂停状态，则恢复
-                    if (this.gameController && this.gameController.getIsPaused()) {
+                    if (this.gameController && !wasPausedBeforeSave) {
                         setTimeout(() => {
                             this.gameController?.resumeGame();
                         }, 500); // 给用户一点视觉反馈时间
@@ -177,7 +179,7 @@ export class InputHandler extends Component {
                     console.error('Failed to save game.');
 
                     // 如果保存失败但游戏被暂停了，恢复游戏
-                    if (this.gameController && this.gameController.getIsPaused()) {
+                    if (this.gameController && !wasPausedBeforeSave && this.gameController.getIsPaused()) {
                         this.gameController.resumeGame();
                     }
                 }
@@ -185,8 +187,10 @@ export class InputHandler extends Component {
 
             // 加载游戏
             case KeyCode.KEY_L:
+                const wasPausedBeforeLoad = this.gameController?.getIsPaused() ?? false;
+
                 // 暂停当前游戏再加载
-                if (this.gameController && !this.gameController.getIsPaused()) {
+                if (this.gameController && !wasPausedBeforeLoad) {
                     this.gameController.pauseGame();
                 }
 
@@ -197,7 +201,7 @@ export class InputHandler extends Component {
                     console.error('Failed to load game. No saved game found or loading error.');
 
                     // 如果加载失败但游戏被暂停了，恢复游戏
-                    if (this.gameController && this.gameController.getIsPaused()) {
+                    if (this.gameController && !wasPausedBeforeLoad && this.gameController.getIsPaused()) {
                         this.gameController.resumeGame();
                     }
                 }

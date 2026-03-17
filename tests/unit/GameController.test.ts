@@ -216,13 +216,16 @@ describe('GameController', () => {
                 return offset.y === -1; // Simulate collision when moving down
             });
 
+            const lockPieceSpy = jest.spyOn(gameController as any, 'lockPiece');
+
             gameController.movePieceDown();
 
             // 验证锁定了方块
-            expect(gameController['lockPiece']).toHaveBeenCalled();
+            expect(lockPieceSpy).toHaveBeenCalled();
 
             // 恢复原始方法
             gameController['checkCollisionWithOffset'] = originalCheckCollision;
+            lockPieceSpy.mockRestore();
         });
     });
 
